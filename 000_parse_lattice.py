@@ -25,7 +25,7 @@ fname = 'sler_1705_60_06_cw50_4b.plain.sad'
 ################################################################################
 # Read the SAD file
 ################################################################################
-with open(f"lattices/{fname}", 'r', encoding="utf-8") as sad_file:
+with open("sad_files/" + fname, 'r', encoding="utf-8") as sad_file:
     content = sad_file.read()
 
 content = content.lower() # make it lower case
@@ -98,6 +98,6 @@ for ss in sections:
 ################################################################################
 # Save as a JSON
 ################################################################################
-out_file_name = 'lattices/' + fname.replace('.plain.sad', '') + '.json'
+out_file_name = 'json/' + fname.replace('.plain.sad', '') + '.json'
 with open(out_file_name, 'w', encoding="utf-8") as out_file:
     json.dump(out, out_file, indent=2)
