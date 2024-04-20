@@ -1,23 +1,50 @@
-import xtrack as xt
+"""
+Build XSuite Line from parsed SAD file
 
+Author(s):      Giovani Iadarola, John Salvesen
+Forked:         20/04/2024
+Last Edited:    20/04/2024
+"""
+
+################################################################################
+# Python Setup
+################################################################################
+
+########################################
+# Packages
+########################################
 import json
 import numpy as np
+import xtrack as xt
+import xplt
+import matplotlib.pyplot as plt
 
-fname = 'sler_1705_60_06_cw50_4b.json'
-# fname = 'sler_1707_80_1_simple.sad.json'
+########################################
+# User Arguments
+########################################
+fname               = 'sler_1705_60_06_cw50_4b.json'
+twiss_fname         = 'sler_1705_60_06_cw50_4b.twiss.json'
+ref_particle_p0c    = 4e9
 
-with open(fname, 'r') as fid:
-    d = json.load(fid)
+################################################################################
+# Convert SAD to XTrack Elements
+################################################################################
+with open("json/" + fname, 'r', encoding="utf-8") as parsed_sad:
+    d = json.load(parsed_sad)
 
 imported_elems = {}
 
-# drift
+########################################
+# Drifts
+########################################
 drifts = d['drift']
 for nn, vv in drifts.items():
     assert len(vv.keys()) == 1
     imported_elems[nn] = xt.Drift(length=vv['l'])
 
-# bends
+########################################
+# Bends
+########################################
 bends = d['bend']
 bends_off = []
 bends_on = []
@@ -67,8 +94,11 @@ for nn in bends_on:
 
     imported_elems[nn] = oo
 
-for nn, vv in d['quad'].items():
 
+########################################
+# Quadrupoles
+########################################
+for nn, vv in d['quad'].items():
     if 'rotate' in vv:
         assert np.abs(vv['rotate']) == 45
         # TODO: neglecting skew for not
@@ -76,55 +106,80 @@ for nn, vv in d['quad'].items():
     imported_elems[nn] = xt.Quadrupole(length=vv['l'], k1=vv['k1']/vv['l'])
     # TODO: neglecting fringes for now
 
+########################################
+# Multipoles
+########################################
 for nn, vv in d['mult'].items():
     # TODO neglecting multipoles for now
     imported_elems[nn] = xt.Drift(length=vv.get('l', 0))
 
+########################################
+# Octupoles
+########################################
 for nn, vv in d['oct'].items():
     assert 'l' not in vv
     # TODO neglecting octupoles for now
     imported_elems[nn] = xt.Marker()
 
+########################################
+# Cavities
+########################################
 for nn, vv in d['cavi'].items():
     assert 'l' not in vv
     # TODO neglecting cavities for now
     imported_elems[nn] = xt.Marker()
 
+########################################
+# Monitors
+########################################
 for nn, vv in d['moni'].items():
     assert 'l' not in vv
     imported_elems[nn] = xt.Marker()
 
+########################################
+# Markers
+########################################
 for nn, vv in d['mark'].items():
     assert 'l' not in vv
     imported_elems[nn] = xt.Marker()
 
+########################################
+# Apertures
+########################################
 for nn, vv in d['apert'].items():
     assert 'l' not in vv
     imported_elems[nn] = xt.Marker()
 
+########################################
+# Solenoid
+########################################
 if 'sol' in d:
     for nn, vv in d['sol'].items():
         assert 'l' not in vv
         # TODO neglecting solenoids for now
         imported_elems[nn] = xt.Marker()
 
+########################################
+# Beam-Beam
+########################################
 if 'beambeam' in d:
     for nn, vv in d['beambeam'].items():
         assert 'l' not in vv
         # TODO neglecting beambeam for now
         imported_elems[nn] = xt.Marker()
 
+################################################################################
+# Correct converted elements
+################################################################################
 element_names = []
 elements = []
 element_counts = {}
 for nn in d['line']:
-
     if nn.startswith('-'):
         inverted = True
         nn = nn[1:]
     else:
         inverted = False
-
 
     if nn not in element_counts:
         element_counts[nn] = 1
@@ -174,12 +229,16 @@ for nn in d['line']:
         elements.append(to_insert.copy())
         element_names.append(xs_name)
 
+################################################################################
+# Create XTrack Line
+################################################################################
 line = xt.Line(elements=elements, element_names=element_names)
-line.particle_ref = xt.Particles(p0c=4e9, mass0=xt.ELECTRON_MASS_EV)
+line.particle_ref = xt.Particles(p0c=ref_particle_p0c, mass0=xt.ELECTRON_MASS_EV)
 
-# Load SAD twiss table
-twiss_fname = 'sler_1705_60_06_cw50_4b.twiss.json'
-with open(twiss_fname, 'r') as f:
+########################################
+# Load the Twiss from SAD
+########################################
+with open("json/" + twiss_fname, 'r', encoding="utf-8") as f:
     tw_dict = json.load(f)
 
 tw_dict['Element'] = np.array([nn.lower() for nn in tw_dict['Element']])
@@ -206,42 +265,68 @@ elems_in_common = np.intersect1d(tw_sad['name'], tt.name)
 tt_common = tt.rows[elems_in_common]
 tsad_common = tw_sad.rows[elems_in_common]
 
-line.build_tracker()
+########################################
+# Build Tracker
+########################################
+line.build_tracker(use_prebuilt_kernels=False)
 
+########################################
+# Run XSuite Survey
+########################################
 sv = line.survey()
+xplt.FloorPlot(sv, line)
+plt.legend(fontsize='small', loc='upper left')
+plt.show()
 
-two = line.twiss(
-        _continue_if_lost=True,
-        start=line.element_names[0],
-        end=line.element_names[-1],
-        init=xt.TwissInit(betx=tw_sad['betx'][0],
-                                alfx=tw_sad['alfx'][0],
-                                bety=tw_sad['bety'][0],
-                                alfy=tw_sad['alfy'][0],
-                                dx=tw_sad['dx'][0],
-                                dy=tw_sad['dy'][0],
-                                dpx=tw_sad['dpx'][0],
-                                dpy=tw_sad['dpy'][0]))
+########################################
+# Run XSuite Twiss
+########################################
+tw_xs = line.twiss(
+    _continue_if_lost   = True,
+    start               = line.element_names[0],
+    end                 = line.element_names[-1],
+    init                = xt.TwissInit(betx=tw_sad['betx'][0],
+    alfx                = tw_sad['alfx'][0],
+    bety                = tw_sad['bety'][0],
+    alfy                = tw_sad['alfy'][0],
+    dx                  = tw_sad['dx'][0],
+    dy                  = tw_sad['dy'][0],
+    dpx                 = tw_sad['dpx'][0],
+    dpy                 = tw_sad['dpy'][0])
+)
 
-betx_sad = np.interp(two.s, tw_sad.s, tw_sad.betx)
-bety_sad = np.interp(two.s, tw_sad.s, tw_sad.bety)
+betx_sad = np.interp(tw_xs.s, tw_sad.s, tw_sad.betx)
+bety_sad = np.interp(tw_xs.s, tw_sad.s, tw_sad.bety)
 
-import matplotlib.pyplot as plt
+################################################################################
+# Plot Outputs
+################################################################################
 plt.close('all')
 plt.figure(1)
-ax1 = plt.subplot(2,1,1)
-plt.plot(two.s, two.betx / betx_sad - 1, '.-', label='x')
-plt.ylim(-0.5, 0.5)
-ax2 = plt.subplot(2,1,2, sharex=ax1)
-plt.plot(two.s, two.bety / bety_sad - 1, '.-', label='y')
-plt.ylim(-0.5, 0.5)
+xplt.FloorPlot(sv, line)
+plt.legend(fontsize='small', loc='upper left')
 
 plt.figure(2)
 ax1 = plt.subplot(2,1,1)
-plt.plot(two.s, two.betx, '.-', label='x')
-plt.plot(two.s, betx_sad, '.-', label='x sad')
+plt.plot(tw_xs.s, tw_xs.betx / betx_sad - 1, '.-', label='x')
+plt.ylim(-0.5, 0.5)
+ax1.set_xlabel('s [m]')
+ax1.set_ylabel('betx / betx_sad - 1')
 ax2 = plt.subplot(2,1,2, sharex=ax1)
-plt.plot(two.s, two.bety, '.-', label='y')
+plt.plot(tw_xs.s, tw_xs.bety / bety_sad - 1, '.-', label='y')
+ax2.set_xlabel('s [m]')
+ax2.set_ylabel('bety / bety_sad - 1')
+plt.ylim(-0.5, 0.5)
+
+plt.figure(3)
+ax1 = plt.subplot(3,1,1)
+plt.plot(tw_xs.s, tw_xs.betx, '.-', label='x')
+plt.plot(tw_xs.s, betx_sad, '.-', label='x sad')
+ax1.set_xlabel('s [m]')
+ax1.set_ylabel('betx [m]')
+ax2 = plt.subplot(2,1,2, sharex=ax1)
+plt.plot(tw_xs.s, tw_xs.bety, '.-', label='y')
+ax2.set_xlabel('s [m]')
+ax2.set_ylabel('bety [m]')
+plt.legend()
 plt.show()
-
-
