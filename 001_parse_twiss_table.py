@@ -13,9 +13,9 @@ Last Edited:    20/04/2024
 ########################################
 # Packages
 ########################################
-import pandas as pd
 from io import StringIO
 import json
+import pandas as pd
 import xobjects as xo
 
 ########################################
@@ -26,7 +26,7 @@ fname = 'sler_1705_60_06_cw50_4b.twiss'
 ################################################################################
 # Read the Twiss file
 ################################################################################
-with open('sad_files/' + fname, 'r') as sad_file:
+with open('sad_files/' + fname, 'r', encoding="utf-8") as sad_file:
     content = sad_file.read()
 
 ########################################
@@ -54,5 +54,5 @@ for nn in df.columns:
 ################################################################################
 # Save as a JSON
 ################################################################################
-with open("json/" + fname + '.json', 'w') as fid:
+with open("json/" + fname + '.json', 'w', encoding="utf-8") as fid:
     json.dump(out_dict, fid, cls=xo.JEncoder)
