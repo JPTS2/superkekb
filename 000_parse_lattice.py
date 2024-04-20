@@ -1,12 +1,38 @@
-import json
-fname = 'sler_1705_60_06_cw50_4b.plain.sad'
-fname = 'sler_1707_80_1_simple.sad'
+"""
+Parse SAD sequence to XSuite Line
 
-with open(fname, 'r') as f:
-    content = f.read()
+Author(s):      Giovani Iadarola, John Salvesen
+Forked:         20/04/2024
+Last Edited:    20/04/2024
+"""
+
+################################################################################
+# Python Setup
+################################################################################
+
+########################################
+# Packages
+########################################
+import json
+
+########################################
+# User Arguments
+########################################
+fname = 'sler_1705_60_06_cw50_4b.plain.sad'
+# fname = 'sler_1707_80_1_simple.sad'
+
+
+################################################################################
+# Read the SAD file
+################################################################################
+with open(f"lattices/{fname}", 'r', encoding="utf-8") as sad_file:
+    content = sad_file.read()
 
 content = content.lower() # make it lower case
 
+########################################
+# Correct Bad Formatting
+########################################
 while ' =' in content:
     content = content.replace(' =', '=')
 
@@ -18,17 +44,21 @@ while '  ' in content:
 
 content = content.replace('deg', '')
 
+########################################
+# Split the SAD file into sections
+########################################
 sections = content.split(';')
 out = {}
-out_py = {}
 for ss in sections:
     ss_py = ss
     ss_py = ss_py.strip()
 
+    # If the section is empty, skip
     if len(ss_py) == 0:
         continue
 
     ss_command = ss_py.split()[0]
+    # Check is the command is a known command
     if ss_command in ('drift', 'bend', 'quad', 'oct', 'mult', 'sol', 'cavi',
                 'mark', 'moni', 'beambeam', 'apert'):
         ss_py = ss_py.replace('(', 'dict(').replace(')', '),')
@@ -53,8 +83,6 @@ for ss in sections:
         else:
             out[ss_command] = dct
 
-    out_py[ss_command] = ss_py
-
     if ss_command == 'line':
         ele_str = ss.split('=')[-1]
         ele_str = ele_str.replace('(', '')
@@ -67,6 +95,9 @@ for ss in sections:
 
         out['line'] = ele_str_list
 
-# save as json
-with open(fname.replace('.plain.sad', '') + '.json', 'w') as f:
-    json.dump(out, f, indent=2)
+################################################################################
+# Save as a JSON
+################################################################################
+out_file_name = 'lattices/' + fname.replace('.plain.sad', '') + '.json'
+with open(out_file_name, 'w', encoding="utf-8") as out_file:
+    json.dump(out, out_file, indent=2)
