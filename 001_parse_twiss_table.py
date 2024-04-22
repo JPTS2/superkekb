@@ -35,7 +35,7 @@ with open('sad_files/' + fname, 'r', encoding="utf-8") as sad_file:
 lines = content.split('\n')
 header = lines[0]
 
-content = '\n'.join(ll for ll in lines if 's(m)' not in ll)
+content = '\n'.join(ll for ll in lines if ('s(m)' not in ll and 'Length' not in ll))
 
 ########################################
 # Prepend Header
