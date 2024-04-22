@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 ########################################
 fname               = 'sler_1705_60_06_cw50_4b.json'
 twiss_fname         = 'sler_1705_60_06_cw50_4b.twiss.json'
+survey_fname        = 'sler_1705_60_06_cw50_4b.dispg.json'
 ref_particle_p0c    = 4e9
 
 ################################################################################
@@ -75,7 +76,8 @@ for nn in bends_on:
         oo.append(xt.SRotation(angle=-vv['rotate']))
 
     if 'e1' in vv:
-        # assert vv['fringe'] == 1 # we put fringes everywhere (check what happens if fringe is not there)
+        # assert vv['fringe'] == 1
+        # we put fringes everywhere (check what happens if fringe is not there)
         oo.append(xt.DipoleEdge(k=k0, e1=vv['e1']*angle,
                                 hgap=1/6, #linear drop-off (see madx manual)
                                 fint=vv['f1'],
@@ -266,17 +268,23 @@ tt_common = tt.rows[elems_in_common]
 tsad_common = tw_sad.rows[elems_in_common]
 
 ########################################
+# Load SAD survey
+########################################
+with open(f'json/{survey_fname}', 'r') as f:
+    sv_sad = json.load(f)
+
+########################################
 # Build Tracker
 ########################################
-line.build_tracker(use_prebuilt_kernels=False)
+line.build_tracker()
 
 ########################################
 # Run XSuite Survey
 ########################################
 sv = line.survey()
-xplt.FloorPlot(sv, line)
-plt.legend(fontsize='small', loc='upper left')
-plt.show()
+# xplt.FloorPlot(sv, line)
+# plt.legend(fontsize='small', loc='upper left')
+# plt.show()
 
 ########################################
 # Run XSuite Twiss
@@ -303,30 +311,33 @@ bety_sad = np.interp(tw_xs.s, tw_sad.s, tw_sad.bety)
 ################################################################################
 plt.close('all')
 plt.figure(1)
-xplt.FloorPlot(sv, line)
-plt.legend(fontsize='small', loc='upper left')
-
-plt.figure(2)
 ax1 = plt.subplot(2,1,1)
 plt.plot(tw_xs.s, tw_xs.betx / betx_sad - 1, '.-', label='x')
 plt.ylim(-0.5, 0.5)
-ax1.set_xlabel('s [m]')
-ax1.set_ylabel('betx / betx_sad - 1')
 ax2 = plt.subplot(2,1,2, sharex=ax1)
 plt.plot(tw_xs.s, tw_xs.bety / bety_sad - 1, '.-', label='y')
-ax2.set_xlabel('s [m]')
-ax2.set_ylabel('bety / bety_sad - 1')
 plt.ylim(-0.5, 0.5)
 
-plt.figure(3)
-ax1 = plt.subplot(3,1,1)
+plt.figure(2)
+ax1 = plt.subplot(2,1,1)
 plt.plot(tw_xs.s, tw_xs.betx, '.-', label='x')
 plt.plot(tw_xs.s, betx_sad, '.-', label='x sad')
-ax1.set_xlabel('s [m]')
-ax1.set_ylabel('betx [m]')
 ax2 = plt.subplot(2,1,2, sharex=ax1)
 plt.plot(tw_xs.s, tw_xs.bety, '.-', label='y')
-ax2.set_xlabel('s [m]')
-ax2.set_ylabel('bety [m]')
-plt.legend()
+
+plt.figure(3)
+plt.plot(sv.Z, sv.X, label='xsuite')
+plt.plot(sv_sad['Gx'], -np.array(sv_sad['Gy']), label='sad')
+
+plt.figure(4)
+plt.plot(sv.s, sv.X, label='xsuite')
+plt.plot(sv_sad['s'], -np.array(sv_sad['Gy']), label='sad')
+
+plt.figure(5)
+sp1 = plt.subplot(2,1,1)
+plt.plot(tw_sad.s, tw_sad.betx, '.-', label='betx')
+plt.plot(tw_sad.s, tw_sad.bety, '.-', label='bety')
+sp2 = plt.subplot(2,1,2, sharex=sp1)
+plt.plot(tw_sad.s, tw_sad.dx, label='dx')
+
 plt.show()
